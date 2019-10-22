@@ -107,6 +107,7 @@ contract PAXTR is Owned {
 
     // Balance Mapping
     mapping(address => uint256) public baseBalance;
+    mapping(address => mapping(address => uint256)) public allowanceMapping;
 
     struct Treasure {
         uint256 totalClaimed;
@@ -133,22 +134,30 @@ contract PAXTR is Owned {
         return (baseBalance[account].mul(demurrageBaseMultiplier)).div(1000000000000000000);
     }
 
-    function transfer(address recipient, uint256 amount) external returns (bool) {
-        require(balanceOf(msg.sender) >= amount, 'Sender does not have enough balance');
-        uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
-        baseBalance[msg.sender] = sub(baseBalance[msg.sender], baseAmount);
-        baseBalance[recipient] = add(baseBalance[recipient], baseAmount);
-        emit Transfer(msg.sender, recipient, amount);
-        // Credit Treasure is eligible
-        if (hasTreasure[msg.sender] == true && treasure[msg.sender].totalClaimed < && treasure[msg.sender].claimedInMonth[currentMonth]) {
+    // function transfer(address recipient, uint256 amount) public returns (bool) {
+    //     require(balanceOf(msg.sender) >= amount, 'Sender does not have enough balance');
+    //     uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+    //     baseBalance[msg.sender] = sub(baseBalance[msg.sender], baseAmount);
+    //     baseBalance[recipient] = add(baseBalance[recipient], baseAmount);
+    //     emit Transfer(msg.sender, recipient, amount);
+    //     // Credit Treasure is eligible
+    //     if (hasTreasure[msg.sender] == true && treasure[msg.sender].totalClaimed < && treasure[msg.sender].claimedInMonth[currentMonth]) {
 
-        }
+    //     }
+    //     return true;
+    // }
+
+    function allowance(address owner, address spender) public view returns (uint256) {
+        return allowanceMapping[owner][spender];
     }
 
-    // function allowance(address owner, address spender) external view returns (uint256);
+    function approve(address spender, uint256 amount) public returns (bool) {
+        allowanceMapping[msg.sender][spender] = amount;
+        return true;
+    }
 
-    // function approve(address spender, uint256 amount) external returns (bool);
+    // function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
 
-    // function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    // }
 
 }
