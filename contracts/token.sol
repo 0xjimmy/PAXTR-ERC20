@@ -99,6 +99,7 @@ contract PAXTR is Owned {
     uint256 public activeAccounts = 0;
     uint256 public maximumSupply = 0;
     uint256 public circulatingBaseSupply = 0;
+    uint256 public treasureAge = 948;
 
     uint256 public endOfMonth;
 
@@ -111,6 +112,7 @@ contract PAXTR is Owned {
 
     struct Treasure {
         uint256 totalClaimed;
+        uint256 startMonth;
         mapping(uint256 => uint256) claimedInMonth;
     }
     mapping(address => Treasure) public treasure;
@@ -121,7 +123,17 @@ contract PAXTR is Owned {
         require(msg.sender == minterAddress, 'Only the minterAddress may call this function');
         require(hasTreasure[account] == false, 'Account has already been issued their Lifetime Treasure');
         hasTreasure[account] = true;
-        // To to
+        // increase max supply
+        // life e
+    }
+
+    // Issue refferal
+    // Restore existing balance
+    // restore existing treasure
+
+    // Claim Treasure
+    function claim(address account, uint256 amount) internal returns (bool) {
+        
     }
 
     // ERC20 Standard Functions
@@ -134,18 +146,13 @@ contract PAXTR is Owned {
         return (baseBalance[account].mul(demurrageBaseMultiplier)).div(1000000000000000000);
     }
 
-    // function transfer(address recipient, uint256 amount) public returns (bool) {
-    //     require(balanceOf(msg.sender) >= amount, 'Sender does not have enough balance');
-    //     uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
-    //     baseBalance[msg.sender] = sub(baseBalance[msg.sender], baseAmount);
-    //     baseBalance[recipient] = add(baseBalance[recipient], baseAmount);
-    //     emit Transfer(msg.sender, recipient, amount);
-    //     // Credit Treasure is eligible
-    //     if (hasTreasure[msg.sender] == true && treasure[msg.sender].totalClaimed < && treasure[msg.sender].claimedInMonth[currentMonth]) {
-
-    //     }
-    //     return true;
-    // }
+    function transfer(address recipient, uint256 amount) public returns (bool) {
+        require(balanceOf(msg.sender) >= amount, 'Sender does not have enough balance');
+        uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        baseBalance[msg.sender] = baseBalance[msg.sender].sub(baseAmount);
+        baseBalance[recipient] = baseBalance[recipient].add(baseAmount);
+        emit Transfer(msg.sender, recipient, amount);
+    }
 
     function allowance(address owner, address spender) public view returns (uint256) {
         return allowanceMapping[owner][spender];
@@ -156,8 +163,14 @@ contract PAXTR is Owned {
         return true;
     }
 
-    // function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
-
-    // }
+    function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
+        require(allowanceMapping[sender][recipient] >= amount, 'Sender has not authorised this transaction');
+        require(balanceOf(sender) >= amount, 'Sender does not have enough balance');
+        uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        baseBalance[sender] = baseBalance[sender].sub(baseAmount);
+        baseBalance[recipient] = baseBalance[recipient].add(baseAmount);
+        allowanceMapping[sender][recipient] = allowanceMapping[sender][recipient].sub(baseAmount);
+        emit Transfer(sender, recipient, amount);
+    }
 
 }
