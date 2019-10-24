@@ -83,25 +83,31 @@ contract Owned {
 contract PAXTR is Owned {
     using SafeMath for uint256;
 
-    constructor() public payable {
-
+    constructor(uint256 _endOfMonth) public payable {
+        endOfMonth = _endOfMonth;
     }
 
     // Events
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Unlock(address indexed from, uint256 value);
 
     // Main Variables
+    uint256 public constant decimals = 8;
+    string public constant name = "PAX Treasure Reserve";
+    string public constant symbol = "PAXTR";
+
     address public minterAddress;
     address public worldTresuryAddress;
 
     uint256 public createdAccounts = 0;
     uint256 public activeAccounts = 0;
-    uint256 public maximumSupply = 0;
+    uint256 public maximumBaseSupply = 0;
     uint256 public circulatingBaseSupply = 0;
-    uint256 public treasureAge = 948;
+    uint256 public treasureAge = 79;
 
     uint256 public endOfMonth;
+    uint256 public monthCount;
 
     // Demurrage base
     uint256 public demurrageBaseMultiplier = 1000000000000000000;
@@ -118,27 +124,53 @@ contract PAXTR is Owned {
     mapping(address => Treasure) public treasure;
     mapping(address => bool) public hasTreasure;
 
-    // Minting
+    // Treasure
     function issueTreasure(address account) public {
         require(msg.sender == minterAddress, 'Only the minterAddress may call this function');
         require(hasTreasure[account] == false, 'Account has already been issued their Lifetime Treasure');
         hasTreasure[account] = true;
-        // increase max supply
-        // life e
+
+        uint256 _maxiumBaseSupply = (uint256(555500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        uint256 _circulatingSupply = (uint256(45550000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        uint256 _baseBalance = (uint256(50000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        uint256 _newWorldBalance = (uint256(45500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        maximumBaseSupply = maximumBaseSupply.add(_maxiumBaseSupply);
+        circulatingBaseSupply = circulatingBaseSupply.add(_circulatingSupply);
+        baseBalance[account] = baseBalance[account].add(_baseBalance);
+        emit Transfer(address(0), account, 50000000);
+        baseBalance[worldTresuryAddress] = baseBalance[worldTresuryAddress].add(_newWorldBalance);
+        emit Transfer(address(0), worldTresuryAddress, 45500000000);
+
+        treasure[account].totalClaimed = 50000000;
+        treasure[account].startMonth = monthCount;
+        treasure[account].claimedInMonth[monthCount] = 50000000;
+        emit Unlock(account, 50000000);
+    }
+
+    function claim(address account, uint256 amount) internal returns (bool) {
+
     }
 
     // Issue refferal
     // Restore existing balance
     // restore existing treasure
 
-    // Claim Treasure
-    function claim(address account, uint256 amount) internal returns (bool) {
-        
+    // New Month
+    function newMonth() private {
+        if (now <= endOfMonth) {
+            endOfMonth = endOfMonth.add(2635200);
+            uint256 bigInt = 1000000000000000000;
+            demurrageBaseMultiplier = (demurrageBaseMultiplier*(bigInt))/(bigInt+(((treasureAge*bigInt)/12)/55555));
+        }
     }
 
     // ERC20 Standard Functions
 
     function totalSupply() public view returns (uint256) {
+        return (maximumBaseSupply.mul(demurrageBaseMultiplier)).div(1000000000000000000);
+    }
+
+    function circulatingSupply() public view returns (uint256) {
         return (circulatingBaseSupply.mul(demurrageBaseMultiplier)).div(1000000000000000000);
     }
 
@@ -152,6 +184,8 @@ contract PAXTR is Owned {
         baseBalance[msg.sender] = baseBalance[msg.sender].sub(baseAmount);
         baseBalance[recipient] = baseBalance[recipient].add(baseAmount);
         emit Transfer(msg.sender, recipient, amount);
+        newMonth();
+        return true;
     }
 
     function allowance(address owner, address spender) public view returns (uint256) {
@@ -160,6 +194,7 @@ contract PAXTR is Owned {
 
     function approve(address spender, uint256 amount) public returns (bool) {
         allowanceMapping[msg.sender][spender] = amount;
+        newMonth();
         return true;
     }
 
@@ -171,6 +206,7 @@ contract PAXTR is Owned {
         baseBalance[recipient] = baseBalance[recipient].add(baseAmount);
         allowanceMapping[sender][recipient] = allowanceMapping[sender][recipient].sub(baseAmount);
         emit Transfer(sender, recipient, amount);
+        newMonth();
+        return true;
     }
-
 }
