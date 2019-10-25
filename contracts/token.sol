@@ -147,20 +147,35 @@ contract PAXTR is Owned {
         emit Unlock(account, 50000000);
     }
 
-    function claim(address account, uint256 amount) internal returns (bool) {
-
+    function claim(address account, uint256 amount) private returns (bool) {
+        uint256 monthlyClaim = (uint256(5000).sub(treasure[account].totalClaimed)).div((treasureAge.mul(12)).sub(monthCount.sub(treasure[account].startMonth)));
+        if (treasure[account].claimedInMonth[monthCount] == monthlyClaim) {
+            return false;
+        } else {
+            if (treasure[account].claimedInMonth[monthCount].add(amount) > monthlyClaim) {
+                baseBalance[account] = baseBalance[account].add((monthlyClaim.sub(treasure[account].claimedInMonth[monthCount])).mul(1000000000000000000).div(demurrageBaseMultiplier));
+                emit Transfer(address(0), account, monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]));
+                emit Unlock(account, monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]));
+                treasure[account].claimedInMonth[monthCount] = monthlyClaim;
+            } else {
+                treasure[account].claimedInMonth[monthCount] = treasure[account].claimedInMonth[monthCount].add(amount);
+                emit Unlock(account, amount);
+                baseBalance[account] = baseBalance[account].add(amount.mul(1000000000000000000).div(demurrageBaseMultiplier));
+                emit Transfer(address(0), account, amount);
+            }
+        }
     }
 
-    // Issue refferal
-    // Restore existing balance
-    // restore existing treasure
+    // Refferals
+
+    // Migrate Accounts from Old Contract
 
     // New Month
     function newMonth() private {
         if (now <= endOfMonth) {
             endOfMonth = endOfMonth.add(2635200);
             uint256 bigInt = 1000000000000000000;
-            demurrageBaseMultiplier = (demurrageBaseMultiplier*(bigInt))/(bigInt+(((treasureAge*bigInt)/12)/55555));
+            demurrageBaseMultiplier = (demurrageBaseMultiplier.mul(bigInt))/(bigInt+(((treasureAge.mul(bigInt))/12)/55555));
         }
     }
 
@@ -185,6 +200,7 @@ contract PAXTR is Owned {
         baseBalance[recipient] = baseBalance[recipient].add(baseAmount);
         emit Transfer(msg.sender, recipient, amount);
         newMonth();
+        claim(msg.sender, amount);
         return true;
     }
 
@@ -207,6 +223,7 @@ contract PAXTR is Owned {
         allowanceMapping[sender][recipient] = allowanceMapping[sender][recipient].sub(baseAmount);
         emit Transfer(sender, recipient, amount);
         newMonth();
+        claim(sender, amount);
         return true;
     }
 }
