@@ -82,6 +82,7 @@ contract Owned {
 
 contract PAXTR is Owned {
     using SafeMath for uint256;
+    using SafeMath for uint128;
 
     constructor(uint256 _endOfMonth) public payable {
         endOfMonth = _endOfMonth;
@@ -124,11 +125,23 @@ contract PAXTR is Owned {
     mapping(address => Treasure) public treasure;
     mapping(address => bool) public hasTreasure;
 
+    mapping(address => uint128) public totalReferrals;
+    mapping(address => mapping(uint256 => uint128)) public monthlyReferrals;
+
+    // Instant Unlock Quota
+    uint128 public monthReferralQuota = 1;
+    uint128 public permanentReferralQuota = 5;
+
     // Treasure
-    function issueTreasure(address account) public {
+    function issueTreasure(address account, address referral) public {
         require(msg.sender == minterAddress, 'Only the minterAddress may call this function');
         require(hasTreasure[account] == false, 'Account has already been issued their Lifetime Treasure');
         hasTreasure[account] = true;
+
+        if (referral != address(0)) {
+            totalReferrals[referral] = totalReferrals[referral].add(1);
+            monthlyReferrals[referral][monthCount] = monthlyReferrals[referral][monthCount].add(1);
+        }
 
         uint256 _maxiumBaseSupply = (uint256(555500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         uint256 _circulatingSupply = (uint256(45550000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
@@ -151,6 +164,8 @@ contract PAXTR is Owned {
         uint256 monthlyClaim = (uint256(5000).sub(treasure[account].totalClaimed)).div((treasureAge.mul(12)).sub(monthCount.sub(treasure[account].startMonth)));
         if (treasure[account].claimedInMonth[monthCount] == monthlyClaim) {
             return false;
+        } else if (totalReferrals[account] >= permanentReferralQuota || monthlyReferrals[account][monthCount] >= monthReferralQuota) {
+            // Release monthly tokens
         } else {
             if (treasure[account].claimedInMonth[monthCount].add(amount) > monthlyClaim) {
                 baseBalance[account] = baseBalance[account].add((monthlyClaim.sub(treasure[account].claimedInMonth[monthCount])).mul(1000000000000000000).div(demurrageBaseMultiplier));
