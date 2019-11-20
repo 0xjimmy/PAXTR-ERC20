@@ -90,7 +90,9 @@ contract PAXTR is Owned {
     // Events
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    event Unlock(address indexed from, uint256 value);
+    event Unlock(address indexed owner, uint256 value);
+    event Lock(address indexed owner, uint256 value);
+
 
     // Main Variables
     uint256 public constant decimals = 8;
@@ -111,6 +113,12 @@ contract PAXTR is Owned {
 
     uint256 public endOfMonth;
     uint256 public monthCount;
+
+    bool public transfersPaused;
+
+    function pauseTransfers(bool state) public onlyOwner {
+        transfersPaused = state;
+    }
 
     // Demurrage base
     uint256 public demurrageBaseMultiplier = 1000000000000000000;
@@ -160,13 +168,27 @@ contract PAXTR is Owned {
         claim(account, 50000000);
     }
 
-    function treasureWithdraw(address account, uint256 amount) public onlyOwner {
-        require(treasure[account].endMonth > 0 && treasure[account].totalClaimed < uint256(500000000000).sub(amount), 'Not enough PAXTR to withdraw!');
+    function treasureWithdraw(address account, address to, uint256 amount) public onlyOwner {
+        require(treasure[account].endMonth > monthCount.add(1), "Treasure is not active anymore");
+        uint256 maximumClaim = treasure[account].monthlyClaim.mul(treasure[account].endMonth.sub(monthCount.add(1)));
+        require(amount <= maximumClaim, "Not enough PAXTR to withdraw!");
+        treasure[account].monthlyClaim = (maximumClaim.sub(amount)).div(treasure[account].endMonth.sub(monthCount.add(1)));
+        uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        baseBalance[to] = baseBalance[to].add(baseAmount);
+        emit Unlock(account, amount);
+        emit Transfer(address(0), to, amount);
     }
 
-    // function treasureDeposit(address account, address from, uint256 amount) public onlyOwner {
-    //     require(balanceOf(from) >= amount, 'From does not have sufficent balance');
-    // }
+    function treasureDeposit(address account, address from, uint256 amount) public onlyOwner {
+        require(balanceOf(from) >= amount, 'From does not have sufficent balance');
+        require(treasure[account].endMonth > monthCount.add(1), "Treasure is not active anymore");
+        uint256 maximumClaim = treasure[account].monthlyClaim.mul(treasure[account].endMonth.sub(monthCount.add(1)));
+        treasure[account].monthlyClaim = (maximumClaim.add(amount)).div(treasure[account].endMonth.sub(monthCount.add(1)));
+        uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        baseBalance[from] = baseBalance[from].sub(baseAmount);
+        emit Lock(account, amount);
+        emit Transfer(from, address(0), amount);
+    }
 
     function claim(address account, uint256 amount) private returns (bool) {
         if (treasure[account].endMonth < monthCount || treasure[account].claimedInMonth[monthCount] == treasure[account].monthlyClaim) {
@@ -191,6 +213,11 @@ contract PAXTR is Owned {
                 return true;
             }
         }
+    }
+
+    // Users can unlock treasure if they have required refferals without making a transfer
+    function selfClaim() public {
+        claim(msg.sender, 0);
     }
 
     // Migrate Accounts from Old Contract
@@ -219,6 +246,7 @@ contract PAXTR is Owned {
     }
 
     function transfer(address recipient, uint256 amount) public returns (bool) {
+        require(transfersPaused == false, 'Transfers have been paused');
         require(balanceOf(msg.sender) >= amount, 'Sender does not have enough balance');
         uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
         baseBalance[msg.sender] = baseBalance[msg.sender].sub(baseAmount);
@@ -240,6 +268,7 @@ contract PAXTR is Owned {
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) public returns (bool) {
+        require(transfersPaused == false, 'Transfers have been paused');
         require(allowanceMapping[sender][recipient] >= amount, 'Sender has not authorised this transaction');
         require(balanceOf(sender) >= amount, 'Sender does not have enough balance');
         uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
