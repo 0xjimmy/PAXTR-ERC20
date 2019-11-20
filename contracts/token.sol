@@ -82,7 +82,6 @@ contract Owned {
 
 contract PAXTR is Owned {
     using SafeMath for uint256;
-    using SafeMath for uint128;
 
     constructor(uint256 _endOfMonth) public payable {
         endOfMonth = _endOfMonth;
@@ -98,6 +97,9 @@ contract PAXTR is Owned {
     string public constant name = "PAX Treasure Reserve";
     string public constant symbol = "PAXTR";
 
+    string public termsOfUse = "";
+    bytes32 public termsOfUseHash;
+
     address public minterAddress;
     address public worldTresuryAddress;
 
@@ -105,7 +107,7 @@ contract PAXTR is Owned {
     uint256 public activeAccounts = 0;
     uint256 public maximumBaseSupply = 0;
     uint256 public circulatingBaseSupply = 0;
-    uint256 public treasureAge = 79;
+    uint256 public treasureAge = 948;
 
     uint256 public endOfMonth;
     uint256 public monthCount;
@@ -118,25 +120,24 @@ contract PAXTR is Owned {
     mapping(address => mapping(address => uint256)) public allowanceMapping;
 
     struct Treasure {
+        uint256 monthlyClaim;
+        uint256 endMonth;
         uint256 totalClaimed;
-        uint256 startMonth;
         mapping(uint256 => uint256) claimedInMonth;
     }
     mapping(address => Treasure) public treasure;
-    mapping(address => bool) public hasTreasure;
 
-    mapping(address => uint128) public totalReferrals;
-    mapping(address => mapping(uint256 => uint128)) public monthlyReferrals;
+    mapping(address => uint256) public totalReferrals;
+    mapping(address => mapping(uint256 => uint256)) public monthlyReferrals;
 
     // Instant Unlock Quota
-    uint128 public monthReferralQuota = 1;
-    uint128 public permanentReferralQuota = 5;
+    uint256 public monthReferralQuota = 1;
+    uint256 public permanentReferralQuota = 5;
 
     // Treasure
     function issueTreasure(address account, address referral) public {
         require(msg.sender == minterAddress, 'Only the minterAddress may call this function');
-        require(hasTreasure[account] == false, 'Account has already been issued their Lifetime Treasure');
-        hasTreasure[account] = true;
+        require(treasure[account].endMonth == 0, 'Account has already been issued their Lifetime Treasure');
 
         if (referral != address(0)) {
             totalReferrals[referral] = totalReferrals[referral].add(1);
@@ -154,34 +155,43 @@ contract PAXTR is Owned {
         baseBalance[worldTresuryAddress] = baseBalance[worldTresuryAddress].add(_newWorldBalance);
         emit Transfer(address(0), worldTresuryAddress, 45500000000);
 
-        treasure[account].totalClaimed = 50000000;
-        treasure[account].startMonth = monthCount;
-        treasure[account].claimedInMonth[monthCount] = 50000000;
-        emit Unlock(account, 50000000);
+        treasure[account].endMonth = monthCount.add(treasureAge);
+        treasure[account].monthlyClaim = uint256(500000000000).div(treasureAge);
+        claim(account, 50000000);
     }
 
+    function treasureWithdraw(address account, uint256 amount) public onlyOwner {
+        require(treasure[account].endMonth > 0 && treasure[account].totalClaimed < uint256(500000000000).sub(amount), 'Not enough PAXTR to withdraw!');
+    }
+
+    // function treasureDeposit(address account, address from, uint256 amount) public onlyOwner {
+    //     require(balanceOf(from) >= amount, 'From does not have sufficent balance');
+    // }
+
     function claim(address account, uint256 amount) private returns (bool) {
-        uint256 monthlyClaim = (uint256(5000).sub(treasure[account].totalClaimed)).div((treasureAge.mul(12)).sub(monthCount.sub(treasure[account].startMonth)));
-        if (treasure[account].claimedInMonth[monthCount] == monthlyClaim) {
+        if (treasure[account].endMonth < monthCount || treasure[account].claimedInMonth[monthCount] == treasure[account].monthlyClaim) {
             return false;
-        } else if (totalReferrals[account] >= permanentReferralQuota || monthlyReferrals[account][monthCount] >= monthReferralQuota) {
-            // Release monthly tokens
         } else {
-            if (treasure[account].claimedInMonth[monthCount].add(amount) > monthlyClaim) {
-                baseBalance[account] = baseBalance[account].add((monthlyClaim.sub(treasure[account].claimedInMonth[monthCount])).mul(1000000000000000000).div(demurrageBaseMultiplier));
-                emit Transfer(address(0), account, monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]));
-                emit Unlock(account, monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]));
-                treasure[account].claimedInMonth[monthCount] = monthlyClaim;
+            if (amount >= treasure[account].monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]) || totalReferrals[account] >= permanentReferralQuota || monthlyReferrals[account][monthCount] >= monthReferralQuota) {
+                uint256 _amount = treasure[account].monthlyClaim.sub(treasure[account].claimedInMonth[monthCount]);
+                treasure[account].claimedInMonth[monthCount] = treasure[account].monthlyClaim;
+                uint256 baseAmount = (_amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+                baseBalance[account] = baseBalance[account].add(baseAmount);
+                treasure[account].totalClaimed = treasure[account].totalClaimed.add(_amount);
+                emit Transfer(address(0), account, _amount);
+                emit Unlock(account, _amount);
+                return true;
             } else {
                 treasure[account].claimedInMonth[monthCount] = treasure[account].claimedInMonth[monthCount].add(amount);
-                emit Unlock(account, amount);
-                baseBalance[account] = baseBalance[account].add(amount.mul(1000000000000000000).div(demurrageBaseMultiplier));
+                uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+                baseBalance[account] = baseBalance[account].add(baseAmount);
+                treasure[account].totalClaimed = treasure[account].totalClaimed.add(amount);
                 emit Transfer(address(0), account, amount);
+                emit Unlock(account, amount);
+                return true;
             }
         }
     }
-
-    // Refferals
 
     // Migrate Accounts from Old Contract
 
