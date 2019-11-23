@@ -227,7 +227,7 @@ contract PAXTR is Owned {
             baseBalance[account] = baseBalance[account].add(_baseBalance);
             emit Transfer(address(0), account, _balance);
         }
-        totalReferrals[account] = totalReferrals[account].add(totalReferrals);
+        totalReferrals[account] = totalReferrals[account].add(_totalRefferals);
         monthlyReferrals[account][monthCount] = monthlyReferrals[account][monthCount].add(_monthsRefferals);
         if (_hasTreasure == true) {
             treasure[account].monthlyClaim = _treasureBalance.div(treasureAge);
@@ -310,7 +310,7 @@ contract PAXTR is Owned {
     }
 
     function setTreasureAge(uint256 _treasureAge) public onlyOwner {
-        treasureAge = treasureAge;
+        treasureAge = _treasureAge;
     }
 
     function adjustEndOfMonth(uint256 _endOfMonth) public onlyOwner {
