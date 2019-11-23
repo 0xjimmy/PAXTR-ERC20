@@ -99,16 +99,14 @@ contract PAXTR is Owned {
     string public constant name = "PAX Treasure Reserve";
     string public constant symbol = "PAXTR";
 
-    string public termsOfUse = "";
-    bytes32 public termsOfUseHash;
+    string public acknowledgementOfUse = "";
+    bytes32 public acknowledgementOfUseHash = bytes32(0);
 
     address public minterAddress;
-    address public worldTresuryAddress;
+    address public worldTreasuryAddress;
 
-    uint256 public createdAccounts = 0;
-    uint256 public activeAccounts = 0;
+    uint256 public createdTreasure = 0;
     uint256 public maximumBaseSupply = 0;
-    uint256 public circulatingBaseSupply = 0;
     uint256 public treasureAge = 948;
 
     uint256 public endOfMonth;
@@ -153,16 +151,14 @@ contract PAXTR is Owned {
         }
 
         uint256 _maxiumBaseSupply = (uint256(555500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
-        uint256 _circulatingSupply = (uint256(45550000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         uint256 _baseBalance = (uint256(50000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         uint256 _newWorldBalance = (uint256(45500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         maximumBaseSupply = maximumBaseSupply.add(_maxiumBaseSupply);
-        circulatingBaseSupply = circulatingBaseSupply.add(_circulatingSupply);
         baseBalance[account] = baseBalance[account].add(_baseBalance);
         emit Transfer(address(0), account, 50000000);
-        baseBalance[worldTresuryAddress] = baseBalance[worldTresuryAddress].add(_newWorldBalance);
-        emit Transfer(address(0), worldTresuryAddress, 45500000000);
-
+        baseBalance[worldTreasuryAddress] = baseBalance[worldTreasuryAddress].add(_newWorldBalance);
+        emit Transfer(address(0), worldTreasuryAddress, 45500000000);
+        createdTreasure = createdTreasure.add(1);
         treasure[account].endMonth = monthCount.add(treasureAge);
         treasure[account].monthlyClaim = uint256(500000000000).div(treasureAge);
         claim(account, 50000000);
@@ -221,6 +217,25 @@ contract PAXTR is Owned {
     }
 
     // Migrate Accounts from Old Contract
+    mapping(address => bool) public hasMigrated;
+    function migrateAccount(address account, uint256 _balance, uint256 _totalRefferals, uint256 _monthsRefferals, bool _hasTreasure, uint256 _treasureBalance) public onlyOwner {
+        require(treasure[account].endMonth == 0, 'New treasure already exists for this wallet');
+        require(hasMigrated[account] == false, 'This wallet has already been migrated');
+        hasMigrated[account] = true;
+        if (_balance != 0) {
+            uint256 _baseBalance = (_balance.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+            baseBalance[account] = baseBalance[account].add(_baseBalance);
+            emit Transfer(address(0), account, _balance);
+        }
+        totalReferrals[account] = totalReferrals[account].add(totalReferrals);
+        monthlyReferrals[account][monthCount] = monthlyReferrals[account][monthCount].add(_monthsRefferals);
+        if (_hasTreasure == true) {
+            treasure[account].monthlyClaim = _treasureBalance.div(treasureAge);
+            treasure[account].endMonth = monthCount.add(treasureAge);
+            treasure[account].totalClaimed = uint256(500000000000).sub(_treasureBalance);
+            createdTreasure = createdTreasure.add(1);
+        }
+    }
 
     // New Month
     function newMonth() private {
@@ -235,10 +250,6 @@ contract PAXTR is Owned {
 
     function totalSupply() public view returns (uint256) {
         return (maximumBaseSupply.mul(demurrageBaseMultiplier)).div(1000000000000000000);
-    }
-
-    function circulatingSupply() public view returns (uint256) {
-        return (circulatingBaseSupply.mul(demurrageBaseMultiplier)).div(1000000000000000000);
     }
 
     function balanceOf(address account) public view returns (uint256) {
@@ -279,5 +290,31 @@ contract PAXTR is Owned {
         newMonth();
         claim(sender, amount);
         return true;
+    }
+
+    // DAO Change Functions
+
+    function setAcknowledgementOfUse(string memory _location, bytes32 _hash) public onlyOwner {
+        bytes memory emptyStringTest = bytes(_location);
+        require(emptyStringTest.length != 0 && _hash != bytes32(0), 'Not enough data supplied');
+        acknowledgementOfUse = _location;
+        acknowledgementOfUseHash = _hash;
+    }
+
+    function setMinerAddress(address _minterAddress) public onlyOwner {
+        minterAddress = _minterAddress;
+    }
+
+    function setWorldTreasuryAddress(address _worldTreasuryAddress) public onlyOwner {
+        worldTreasuryAddress = _worldTreasuryAddress;
+    }
+
+    function setTreasureAge(uint256 _treasureAge) public onlyOwner {
+        treasureAge = treasureAge;
+    }
+
+    function adjustEndOfMonth(uint256 _endOfMonth) public onlyOwner {
+        require(_endOfMonth > block.timestamp, 'Specifed time is in the past');
+        endOfMonth = _endOfMonth;
     }
 }
