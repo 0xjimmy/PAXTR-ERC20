@@ -99,8 +99,8 @@ contract PAXTR is Owned {
     string public constant name = "PAX Treasure Reserve";
     string public constant symbol = "PAXTR";
 
-    string public acknowledgementOfUse = "";
-    bytes32 public acknowledgementOfUseHash = bytes32(0);
+    string public acknowledgementOfUse = "http://paxco.in/PAXTR-acknowledgment-of-the-human-rights.pdf";
+    bytes32 public acknowledgementOfUseHash = 0xbec69211ae828f3e8e4f566b1fcbee4fe0d2b7fdebbaad76fdfbb3850b1a0a46;
 
     address public minterAddress;
     address public worldTreasuryAddress;
