@@ -317,4 +317,9 @@ contract PAXTR is Owned {
         require(_endOfMonth > block.timestamp, 'Specifed time is in the past');
         endOfMonth = _endOfMonth;
     }
+
+    function setRefferalQuote(uint256 _total, uint256 _month) public onlyOwner {
+        monthReferralQuota = _month;
+        permanentReferralQuota = _total;
+    }
 }
