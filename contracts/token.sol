@@ -85,6 +85,8 @@ contract PAXTR is Owned {
 
     constructor(uint256 _endOfMonth) public payable {
         endOfMonth = _endOfMonth;
+        owner = msg.sender;
+        baseBalance[msg.sender] = 10000000000;
     }
 
     // Events
@@ -96,8 +98,8 @@ contract PAXTR is Owned {
 
     // Main Variables
     uint256 public constant decimals = 8;
-    string public constant name = "PAX Treasure Reserve";
-    string public constant symbol = "PAXTR";
+    string public constant name = "Test Contract Pax";
+    string public constant symbol = "Pax Test";
 
     string public acknowledgementOfUse = "http://paxco.in/PAXTR-acknowledgment-of-the-human-rights.pdf";
     bytes32 public acknowledgementOfUseHash = 0xbec69211ae828f3e8e4f566b1fcbee4fe0d2b7fdebbaad76fdfbb3850b1a0a46;
@@ -238,9 +240,10 @@ contract PAXTR is Owned {
     }
 
     // New Month
-    function newMonth() private {
-        if (now <= endOfMonth) {
+    function newMonth() public {
+        if (now >= endOfMonth) {
             endOfMonth = endOfMonth.add(2635200);
+            monthCount = monthCount.add(1);
             uint256 bigInt = 1000000000000000000;
             demurrageBaseMultiplier = (demurrageBaseMultiplier.mul(bigInt))/(bigInt+(((treasureAge.mul(bigInt))/12)/55555));
         }
