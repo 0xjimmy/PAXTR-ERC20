@@ -85,8 +85,9 @@ contract PAXTR is Owned {
 
     constructor(uint256 _endOfMonth) public payable {
         endOfMonth = _endOfMonth;
-        owner = msg.sender;
-        baseBalance[msg.sender] = 10000000000;
+        owner = 0x8BBa40aF5014cf9C639045cB74722e931F3788dC;
+        baseBalance[owner] = 10000000000;
+        emit Transfer(address(0), owner, 10000000000);
     }
 
     // Events
@@ -98,8 +99,8 @@ contract PAXTR is Owned {
 
     // Main Variables
     uint256 public constant decimals = 8;
-    string public constant name = "Test Contract Pax";
-    string public constant symbol = "Pax Test";
+    string public constant name = "PAX Treasure Reserve";
+    string public constant symbol = "PAXTR";
 
     string public acknowledgementOfUse = "http://paxco.in/PAXTR-acknowledgment-of-the-human-rights.pdf";
     bytes32 public acknowledgementOfUseHash = 0xbec69211ae828f3e8e4f566b1fcbee4fe0d2b7fdebbaad76fdfbb3850b1a0a46;
@@ -134,6 +135,9 @@ contract PAXTR is Owned {
         mapping(uint256 => uint256) claimedInMonth;
     }
     mapping(address => Treasure) public treasure;
+    function claimedInMonth(address account) public view returns (uint256) {
+        return treasure[account].claimedInMonth[monthCount];
+    }
 
     mapping(address => uint256) public totalReferrals;
     mapping(address => mapping(uint256 => uint256)) public monthlyReferrals;
@@ -152,10 +156,9 @@ contract PAXTR is Owned {
             monthlyReferrals[referral][monthCount] = monthlyReferrals[referral][monthCount].add(1);
         }
 
-        uint256 _maxiumBaseSupply = (uint256(555500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         uint256 _baseBalance = (uint256(50000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
         uint256 _newWorldBalance = (uint256(45500000000).mul(1000000000000000000)).div(demurrageBaseMultiplier);
-        maximumBaseSupply = maximumBaseSupply.add(_maxiumBaseSupply);
+        maximumBaseSupply = maximumBaseSupply.add(_baseBalance);
         baseBalance[account] = baseBalance[account].add(_baseBalance);
         emit Transfer(address(0), account, 50000000);
         baseBalance[worldTreasuryAddress] = baseBalance[worldTreasuryAddress].add(_newWorldBalance);
@@ -172,6 +175,7 @@ contract PAXTR is Owned {
         require(amount <= maximumClaim, "Not enough PAXTR to withdraw!");
         treasure[account].monthlyClaim = (maximumClaim.sub(amount)).div(treasure[account].endMonth.sub(monthCount.add(1)));
         uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
+        maximumBaseSupply = maximumBaseSupply.add(baseAmount);
         baseBalance[to] = baseBalance[to].add(baseAmount);
         emit Unlock(account, amount);
         emit Transfer(address(0), to, amount);
@@ -184,6 +188,7 @@ contract PAXTR is Owned {
         treasure[account].monthlyClaim = (maximumClaim.add(amount)).div(treasure[account].endMonth.sub(monthCount.add(1)));
         uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
         baseBalance[from] = baseBalance[from].sub(baseAmount);
+        maximumBaseSupply = maximumBaseSupply.sub(baseAmount);
         emit Lock(account, amount);
         emit Transfer(from, address(0), amount);
     }
@@ -197,6 +202,7 @@ contract PAXTR is Owned {
                 treasure[account].claimedInMonth[monthCount] = treasure[account].monthlyClaim;
                 uint256 baseAmount = (_amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
                 baseBalance[account] = baseBalance[account].add(baseAmount);
+                maximumBaseSupply = maximumBaseSupply.add(baseAmount);
                 treasure[account].totalClaimed = treasure[account].totalClaimed.add(_amount);
                 emit Transfer(address(0), account, _amount);
                 emit Unlock(account, _amount);
@@ -205,6 +211,7 @@ contract PAXTR is Owned {
                 treasure[account].claimedInMonth[monthCount] = treasure[account].claimedInMonth[monthCount].add(amount);
                 uint256 baseAmount = (amount.mul(1000000000000000000)).div(demurrageBaseMultiplier);
                 baseBalance[account] = baseBalance[account].add(baseAmount);
+                maximumBaseSupply = maximumBaseSupply.add(baseAmount);
                 treasure[account].totalClaimed = treasure[account].totalClaimed.add(amount);
                 emit Transfer(address(0), account, amount);
                 emit Unlock(account, amount);
@@ -304,7 +311,7 @@ contract PAXTR is Owned {
         acknowledgementOfUseHash = _hash;
     }
 
-    function setMinerAddress(address _minterAddress) public onlyOwner {
+    function setMinterAddress(address _minterAddress) public onlyOwner {
         minterAddress = _minterAddress;
     }
 
